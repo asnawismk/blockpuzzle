@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Block Puzzle Game</title>
+<style>
+  /* CSS Reset */
+  * {
+    margin: 0; padding: 0; box-sizing: border-box;
+  }
+  html, body {
+    height: 100%;
+    background: linear-gradient(135deg, #2b5876, #4e4376);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: white;
+    user-select: none;
+  }
+  #game {
+    max-width: 350px;
+    margin: 10px auto 20px;
+    padding: 10px;
+    background: #222;
+    border-radius: 12px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  h1 {
+    font-weight: 700;
+    font-size: 1.8rem;
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+    text-align: center;
+    color: #eeffed;
+    text-shadow: 1px 1px 3px #0a0a0a;
+  }
+  .scoreboard {
+    margin-bottom: 12px;
+    font-size: 1.1rem;
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 8px;
+  }
+  .scoreboard div {
+    background: #333;
+    padding: 6px 12px;
+    border-radius: 8px;
+    box-shadow: inset 0 0 8px #111;
+    min-width: 80px;
+    text-align: center;
+    font-weight: 600;
+  }
+  #board {
+    position: relative;
+    width: 350px;
+    height: 350px;
+    background: linear-gradient(45deg, #1f2739, #2c3e50);
+    border-radius: 12px;
+    box-shadow: inset 0 0 25px #0008;
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    grid-template-rows: repeat(10, 1fr);
+    gap: 2px;
+  }
+  .cell {
+    background: #111f32;
+    border-radius: 6px;
+    box-shadow: inset 0 2px 5px #29344a;
+    transition: background-color 0.25s ease;
+  }
+  .cell.filled {
+    background-color: #60c1a2;
+    box-shadow:
+      0 0 15px 3px #60c1a2,
+      inset 0 2px 8px #40a591;
+  }
+  #pieces {
+    margin-top: 14px;
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    max-width: 350px;
+  }
+  .piece {
+    background: #263849;
+    border-radius: 12px;
+    box-shadow: 0 0 10px #0a171d;
+    padding: 6px;
+    display: grid;
+    grid-template-columns: repeat(5, 20px);
+    grid-template-rows: repeat(5, 20px);
+    gap: 3px;
+    user-select: none;
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  .piece:hover:not(.disabled) {
+    transform: scale(1.1);
+    box-shadow: 0 0 15px #1c8a73;
+  }
+  .piece.disabled {
+    filter: grayscale(70%);
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none !important;
+  }
+  .block-cell {
+    width: 20px;
+    height: 20px;
+    background: #4dbfa0;
+    border-radius: 4px;
+    box-shadow:
+      inset 0 2px 3px #3a8c74,
+      0 0 6px #3ecc9f;
+  }
+  .block-cell.empty {
+    background: transparent;
+    box-shadow: none;
+  }
+  button#reset-btn {
+    margin-top: 18px;
+    background: #1d6651;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 24px;
+    font-weight: 700;
+    color: #b1f2e8;
+    font-size: 1.1rem;
+    cursor: pointer;
+    box-shadow: 0 0 12px #1d6651;
+    transition: background-color 0.3s ease;
+  }
+  button#reset-btn:hover {
+    background: #3b9b7a;
+    box-shadow: 0 0 20px #3b9b7a;
+  }
+  /* Animations */
+  .clear-row {
+    animation: clearFlash 0.6s ease forwards;
+  }
+  @keyframes clearFlash {
+    0% {
+      background-color: #60c1a2;
+      box-shadow: 0 0 15px 3px #60c1a2, inset 0 2px 8px #40a57f;
+    }
+    50% {
+      background-color: #fff;
+      box-shadow: 0 0 25px 10px #9ceac2, inset 0 4px 12px #7de0aa;
+    }
+    100% {
+      background-color: transparent;
+      box-shadow: none;
+    }
+  }
+  /* Responsive */
+  @media (max-width: 400px) {
+    #game {
+      width: 100vw;
+      max-width: 350px;
+      padding: 8px 6px;
+    }
+    #board {
+      width: 100vw;
+      max-width: 350px;
+      height: 100vw;
+      max-height: 350px;
+      gap: 1.5px;
+    }
+    .piece {
+      grid-template-columns: repeat(5, calc(100% / 5));
+      grid-template-rows: repeat(5, calc(100% / 5));
+      width: 70px;
+      height: 70px;
+      gap: 2px;
+      padding: 4px;
+    }
+    .block-cell {
+      width: 100%;
+      height: 100%;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="game" role="main" aria-label="Block puzzle game">
+  <h1>Block Puzzle</h1>
+  <div class="scoreboard" aria-live="polite" aria-atomic="true">
+    <div id="score" aria-label="Current score">Score: 0</div>
+    <div id="best-score" aria-label="Best score">Best: 0</div>
+  </div>
+  <div id="board" role="grid" aria-label="Game board"></div>
+  <div id="pieces" aria-label="Available pieces" role="list"></div>
+  <button id="reset-btn" aria-label="Start a new game">New Game</button>
+</div>
+
+<script>
+(() => {
+  const BOARD_SIZE = 10;
+  const CELL_COUNT = BOARD_SIZE * BOARD_SIZE;
+  let board = [];
+  let score = 0;
+  let bestScore = 0;
+  let pieces = [];
+  let selectedPieceId = null;
+
+  const boardEl = document.getElementById('board');
+  const piecesEl = document.getElementById('pieces');
+  const scoreEl = document.getElementById('score');
+  const bestScoreEl = document.getElementById('best-score');
+  const resetBtn = document.getElementById('reset-btn');
+
+  // Define puzzle pieces shapes (max 5x5 matrix)
+  const PIECE_SHAPES = [
+    [[1]], 
+    [[1,1]], 
+    [[1],[1]], 
+    [[1,1,1]], 
+    [[1],[1],[1]], 
+    [[1,1],[1,0]], 
+    [[1,1],[0,1]], 
+    [[1,1],[1,1]], 
+    [[1,1,1],[0,1,0]], 
+    [[1,1,0],[0,1,1]], 
+    [[0,1,1],[1,1,0]], 
+  ];
+
+  function initBoard() {
+    board = new Array(CELL_COUNT).fill(0);
+  }
+
+  function createBoardDOM() {
+    boardEl.innerHTML = '';
+    for (let i = 0; i < CELL_COUNT; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.setAttribute('data-index', i);
+      cell.setAttribute('role', 'gridcell');
+      boardEl.appendChild(cell);
+    }
+  }
+
+  function renderBoard() {
+    const cells = boardEl.children;
+    for (let i = 0; i < CELL_COUNT; i++) {
+      if (board[i] === 1) {
+        if (!cells[i].classList.contains('filled')) {
+          cells[i].classList.add('filled');
+          cells[i].style.opacity = '0';
+          setTimeout(() => cells[i].style.opacity = '1', 10);
+        }
+      } else {
+        cells[i].classList.remove('filled');
+        cells[i].style.opacity = '1';
+      }
+    }
+  }
+
+  // Generate 3 random pieces for current moves
+  // Cloned from PIECE_SHAPES with unique IDs
+  function generatePieces() {
+    pieces = [];
+    for (let i = 0; i < 3; i++) {
+      const idx = Math.floor(Math.random() * PIECE_SHAPES.length);
+      const shape = PIECE_SHAPES[idx].map(row => row.slice());
+      pieces.push({ shape: shape, id: crypto.randomUUID(), disabled: false });
+    }
+  }
+
+  // Render pieces DOM
+  function renderPieces() {
+    piecesEl.innerHTML = '';
+    pieces.forEach((p, idx) => {
+      const pieceEl = document.createElement('div');
+      pieceEl.classList.add('piece');
+      if (p.disabled) pieceEl.classList.add('disabled');
+      pieceEl.setAttribute('data-piece-id', p.id);
+      pieceEl.setAttribute('role', 'listitem');
+      pieceEl.setAttribute('tabindex', p.disabled ? '-1' : '0');
+      pieceEl.setAttribute('aria-label', `Puzzle piece ${idx + 1}${p.disabled ? ', used' : ''}`);
+      for (let r = 0; r < 5; r++) {
+        for (let c = 0; c < 5; c++) {
+          const blockCell = document.createElement('div');
+          blockCell.classList.add('block-cell');
+          if (!p.shape[r] || !p.shape[r][c]) blockCell.classList.add('empty');
+          pieceEl.appendChild(blockCell);
+        }
+      }
+      if (!p.disabled) {
+        pieceEl.addEventListener('click', () => selectPiece(p.id));
+        pieceEl.addEventListener('keydown', e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            selectPiece(p.id);
+          }
+        });
+      }
+      piecesEl.appendChild(pieceEl);
+    });
+  }
+
+  // Select / deselect a piece
+  function selectPiece(id) {
+    if (selectedPieceId === id) {
+      selectedPieceId = null;
+      highlightSelectedPiece(null);
+    } else {
+      selectedPieceId = id;
+      highlightSelectedPiece(id);
+    }
+  }
+
+  // Highlight selected piece visually
+  function highlightSelectedPiece(id) {
+    const pieceEls = piecesEl.querySelectorAll('.piece');
+    pieceEls.forEach(el => {
+      if (el.getAttribute('data-piece-id') === id) {
+        el.style.boxShadow = '0 0 20px 4px #18e3b8';
+        el.style.transform = 'scale(1.15)';
+      } else {
+        el.style.boxShadow = '';
+        el.style.transform = '';
+      }
+    });
+  }
+
+  // Handle placing piece logic on board click
+  boardEl.addEventListener('click', e => {
+    if (!selectedPieceId) return;
+    if (!e.target.classList.contains('cell')) return;
+    const cellIndex = parseInt(e.target.getAttribute('data-index'));
+    const piece = pieces.find(p => p.id === selectedPieceId);
+    if (!piece || piece.disabled) return;
+    if (canPlacePiece(piece.shape, cellIndex)) {
+      placePiece(piece.shape, cellIndex);
+      piece.disabled = true;
+      selectedPieceId = null;
+      highlightSelectedPiece(null);
+      checkFullLines();
+      updateScoreUI();
+      renderPieces();
+      renderBoard();
+      // When all pieces placed, generate next set automatically
+      if (pieces.every(p => p.disabled)) {
+        generatePieces();
+        renderPieces();
+        if (!hasAvailableMoves()) {
+          endGame();
+        }
+      } else {
+        if (!hasAvailableMoves()) {
+          endGame();
+        }
+      }
+    } else {
+      boardEl.style.animation = 'shake 0.3s';
+      setTimeout(() => boardEl.style.animation = '', 300);
+    }
+  });
+
+  // Check if piece placement is valid
+  function canPlacePiece(shape, startIndex) {
+    const colStart = startIndex % BOARD_SIZE;
+    const rowStart = Math.floor(startIndex / BOARD_SIZE);
+    const shapeRows = shape.length;
+    const shapeCols = shape[0].length;
+    for (let r = 0; r < shapeRows; r++) {
+      for (let c = 0; c < shapeCols; c++) {
+        if (shape[r][c] === 1) {
+          if (rowStart + r >= BOARD_SIZE) return false;
+          if (colStart + c >= BOARD_SIZE) return false;
+          if (board[(rowStart + r) * BOARD_SIZE + (colStart + c)] === 1) return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  // Place piece blocks on board
+  function placePiece(shape, startIndex) {
+    const colStart = startIndex % BOARD_SIZE;
+    const rowStart = Math.floor(startIndex / BOARD_SIZE);
+    const shapeRows = shape.length;
+    const shapeCols = shape[0].length;
+    for (let r = 0; r < shapeRows; r++) {
+      for (let c = 0; c < shapeCols; c++) {
+        if (shape[r][c] === 1) {
+          board[(rowStart + r) * BOARD_SIZE + (colStart + c)] = 1;
+          score += 10; // 10 points per block placed
+        }
+      }
+    }
+  }
+
+  // Check and clear full horizontal or vertical lines
+  function checkFullLines() {
+    let clearedLines = 0;
+    let toClearSet = new Set();
+    // Check rows
+    for (let r = 0; r < BOARD_SIZE; r++) {
+      let fullRow = true;
+      for (let c = 0; c < BOARD_SIZE; c++) {
+        if (board[r * BOARD_SIZE + c] === 0) {
+          fullRow = false;
+          break;
+        }
+      }
+      if (fullRow) {
+        clearedLines++;
+        for (let c = 0; c < BOARD_SIZE; c++) toClearSet.add(r * BOARD_SIZE + c);
+      }
+    }
+    // Check columns
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      let fullCol = true;
+      for (let r = 0; r < BOARD_SIZE; r++) {
+        if (board[r * BOARD_SIZE + c] === 0) {
+          fullCol = false;
+          break;
+        }
+      }
+      if (fullCol) {
+        clearedLines++;
+        for (let r = 0; r < BOARD_SIZE; r++) toClearSet.add(r * BOARD_SIZE + c);
+      }
+    }
+    if (clearedLines > 0) {
+      toClearSet.forEach(idx => {
+        const cell = boardEl.children[idx];
+        cell.classList.add('clear-row');
+      });
+      setTimeout(() => {
+        toClearSet.forEach(idx => {
+          board[idx] = 0;
+          const cell = boardEl.children[idx];
+          cell.classList.remove('clear-row');
+        });
+        score += clearedLines * 100; // Bonus score for clearing lines
+        updateScoreUI();
+        renderBoard();
+      }, 600);
+    }
+  }
+
+  // Update score and best score display
+  function updateScoreUI() {
+    scoreEl.textContent = `Score: ${score}`;
+    if (score > bestScore) {
+      bestScore = score;
+      bestScoreEl.textContent = `Best: ${bestScore}`;
+      localStorage.setItem('blockPuzzleBestScore', bestScore);
+    }
+  }
+
+  // Check if there are available moves for unplaced pieces
+  function hasAvailableMoves() {
+    const availablePieces = pieces.filter(p => !p.disabled);
+    if (availablePieces.length === 0) return false;
+    for (const p of availablePieces) {
+      for (let pos = 0; pos < CELL_COUNT; pos++) {
+        if (canPlacePiece(p.shape, pos)) return true;
+      }
+    }
+    return false;
+  }
+
+  // End game handler
+  function endGame() {
+    selectedPieceId = null;
+    highlightSelectedPiece(null);
+    alert('Game Over! Your final score: ' + score);
+    pieces.forEach(p => p.disabled = true);
+    renderPieces();
+  }
+
+  // Reset game to initial state
+  function resetGame() {
+    initBoard();
+    score = 0;
+    updateScoreUI();
+    generatePieces();
+    renderPieces();
+    renderBoard();
+    selectedPieceId = null;
+    highlightSelectedPiece(null);
+  }
+
+  // Load best score from localStorage
+  function loadBestScore() {
+    const storedBest = localStorage.getItem('blockPuzzleBestScore');
+    if (storedBest) {
+      bestScore = parseInt(storedBest);
+      bestScoreEl.textContent = `Best: ${bestScore}`;
+    }
+  }
+
+  // Add shake animation keyframes dynamically
+  const styleEl = document.createElement('style');
+  styleEl.textContent = `
+  @keyframes shake {
+    10%, 90% { transform: translateX(-2px); }
+    20%, 80% { transform: translateX(4px); }
+    30%, 50%, 70% { transform: translateX(-8px); }
+    40%, 60% { transform: translateX(8px); }
+  }
+  `;
+  document.head.appendChild(styleEl);
+
+  resetBtn.addEventListener('click', resetGame);
+
+  // Initialize game
+  createBoardDOM();
+  loadBestScore();
+  resetGame();
+
+})();
+</script>
+</body>
+</html>
+</content>
+</create_file>
